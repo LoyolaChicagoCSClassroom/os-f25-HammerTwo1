@@ -22,19 +22,14 @@ uint8_t inb (uint16_t _port) {
 void putc(int data) {
     unsigned char ch = (unsigned char)(data & 0xFF);
 
-    /* if (ch == '\r') {
-        cursor_pos = (cursor_pos / width) * width;
-        return;
-    }
 
     if (ch == '\n') {
         cursor_pos = (cursor_pos / width + 1) * width;
     } else {
-        
+        vram[cursor_pos] = (unsigned short)(ch | (default_attr << 8));
+        cursor_pos++; 
     }
-        */
-    vram[cursor_pos] = (unsigned short)(ch | (default_attr << 8));
-        cursor_pos++;   
+      
 
     if (cursor_pos >= width * hight) {
         for (unsigned int row = 1; row < hight; row++) {
@@ -57,10 +52,10 @@ void main() {
 
     putc('A');
     
-    esp_printf(putc, "Current execution level: %d", inb);
+    esp_printf(putc, "\nCurrent execution: %d", inb);
 
     for(int i = 0; i < 800; i++){
-        esp_printf(putc,"Line %d", i+1);
+        esp_printf(putc,"Line %d\n", i+1);
     }
 
     while(1) {
