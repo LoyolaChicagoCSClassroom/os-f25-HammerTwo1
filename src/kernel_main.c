@@ -1,5 +1,6 @@
 
 #include <stdint.h>
+#include "scancodes.txt"
 
 #define MULTIBOOT2_HEADER_MAGIC         0xe85250d6
 
@@ -53,21 +54,46 @@ void putc(int data) {
         
 }
 
+void puts(const char *str){
+    while(*str){
+        putc(*str++);
+    }
+}
+
+char nibble_to_hex(uint8_t nibble) {
+    return (nibble < 10) ? ('0' + nibble) : ('A' + (nibble - 10));
+}
+
+
 void main() {
 
-    putc('A');
+    //putc('A');
     
-    esp_printf(putc, "\nCurrent execution: %d", inb);
+    //esp_printf(putc, "\nCurrent execution: %d", inb);
 
-    for(int i = 0; i < 800; i++){
-        esp_printf(putc,"Line %d\n", i+1);
-    }
-
-    while(1) {
+    //for(int i = 0; i < 23; i++){
+    //    esp_printf(putc,"Line %d\n", i+1);
+    //}
+    while (1) {
         uint8_t status = inb(0x64);
 
-        if(status & 1) {
+        if (status & 1) {
             uint8_t scancode = inb(0x60);
+
+            if(scancode >= 0x80){
+                continue;
+            }
+            
+            putc('[');
+            putc(nibble_to_hex((scancode >> 4) & 0xF));
+            putc(nibble_to_hex(scancode & 0xF));
+            putc(']');
+            putc(' ');
+                    
+            if (keyboard_map[scancode]) {
+                putc(keyboard_map[scancode]);
+            }
+            putc('\n');
         }
     }
 }
