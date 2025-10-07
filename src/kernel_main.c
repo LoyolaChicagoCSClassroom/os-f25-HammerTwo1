@@ -19,6 +19,11 @@ uint8_t inb (uint16_t _port) {
     return rv;
 }
 
+void outb (uint16_t _port, uint8_t val) {
+__asm__ __volatile__ ("outb %0, %1" : : "a" (val), "dN" (_port) );
+}
+
+
 void putc(int data) {
     unsigned char ch = (unsigned char)(data & 0xFF);
 
