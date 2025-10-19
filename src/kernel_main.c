@@ -1,6 +1,8 @@
 
 #include <stdint.h>
 #include "scancodes.txt"
+#include "page.h"
+#include "rprintf.h"
 
 #define MULTIBOOT2_HEADER_MAGIC         0xe85250d6
 
@@ -22,6 +24,11 @@ uint8_t inb (uint16_t _port) {
 
 void outb (uint16_t _port, uint8_t val) {
 __asm__ __volatile__ ("outb %0, %1" : : "a" (val), "dN" (_port) );
+}
+
+int vga_putc(int c) {
+    putc(c);
+    return c;
 }
 
 
@@ -74,6 +81,29 @@ void main() {
     //for(int i = 0; i < 23; i++){
     //    esp_printf(putc,"Line %d\n", i+1);
     //}
+    init_pfa_list();  // Initialize the page allocator
+    esp_printf(vga_putc, "Page Frame Allocator Initialized!\n");
+    print_pfa_state();
+
+    // Allocate 3 pages
+    struct ppage *allocated = allocate_physical_pages(3);
+    esp_printf(vga_putc, "\nAllocated 3 pages:\n");
+    struct ppage *cur = allocated;
+    while (cur) {
+        esp_printf(vga_putc, "  Allocated page addr: %x\n", cur->physical_addr);
+        cur = cur->next;
+    }
+
+    // Print free list after allocation
+    print_pfa_state();
+
+    // Free those pages back
+    free_physical_pages(allocated);
+    esp_printf(vga_putc, "\nFreed 3 pages back to free list.\n");
+
+    // Final free list check
+    print_pfa_state();
+    
     while (1) {
         uint8_t status = inb(0x64);
 
