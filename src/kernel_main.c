@@ -3,6 +3,7 @@
 #include "scancodes.txt"
 #include "page.h"
 #include "rprintf.h"
+#include "paging.h"
 
 #define MULTIBOOT2_HEADER_MAGIC         0xe85250d6
 
@@ -13,6 +14,13 @@
 static volatile unsigned short *vram = (unsigned short *)V_mem;
 static unsigned int cursor_pos = 0; 
 static const unsigned char default_attr = 7; 
+
+
+
+extern int vga_putc(int c);
+extern uint8_t _end_kernel;
+
+extern uint32_t pd[1024];  // from paging.c
 
 const unsigned int multiboot_header[]  __attribute__((section(".multiboot"))) = {MULTIBOOT2_HEADER_MAGIC, 0, 16, -(16+MULTIBOOT2_HEADER_MAGIC), 0, 12};
 
@@ -71,21 +79,47 @@ char nibble_to_hex(uint8_t nibble) {
     return (nibble < 10) ? ('0' + nibble) : ('A' + (nibble - 10));
 }
 
+static void identity_map_range(uint32_t start, uint32_t end) {
+    for (uint32_t addr = start & ~0xFFFu; addr < (end + 0xFFFu) & ~0xFFFu; addr += 4096) {
+        struct ppage tmp = {0};
+        tmp.physical_addr = (void*)(uintptr_t)addr;
+        map_pages((void*)(uintptr_t)addr, &tmp, pd);
+    }
+}
+
+
 
 void main() {
 
-    //putc('A');
-    
-    //esp_printf(putc, "\nCurrent execution: %d", inb);
+     init_pfa_list();
 
-    //for(int i = 0; i < 23; i++){
-    //    esp_printf(putc,"Line %d\n", i+1);
-    //}
-    init_pfa_list();  // Initialize the page allocator
+    for (int i=0;i<1024;i++) pd[i] = 0;
+
+    identity_map_range(0x00100000u, (uint32_t)(uintptr_t)&_end_kernel);
+
+    uint32_t esp;
+    asm volatile("mov %%esp, %0" : "=r"(esp));
+    identity_map_range((esp - 0x8000) & ~0xFFFu, (esp + 0x1000 + 0xFFFu) & ~0xFFFu);
+
+    identity_map_range(0x000B8000u, 0x000B9000u);
+
+    loadPageDirectory(pd);
+    enablePaging();
+
+    esp_printf(vga_putc, "Paging enabled. PD=%x ESP=%x END=%x\n", pd, esp, &_end_kernel);
+
+    /* putc('A');
+    
+    esp_printf(putc, "\nCurrent execution: %d", inb);
+
+    for(int i = 0; i < 23; i++){
+        esp_printf(putc,"Line %d\n", i+1);
+    }
+    init_pfa_list();  
     esp_printf(vga_putc, "Page Frame Allocator Initialized!\n");
     print_pfa_state();
 
-    // Allocate 3 pages
+     Allocate 3 pages
     struct ppage *allocated = allocate_physical_pages(3);
     esp_printf(vga_putc, "\nAllocated 3 pages:\n");
     struct ppage *cur = allocated;
@@ -94,15 +128,14 @@ void main() {
         cur = cur->next;
     }
 
-    // Print free list after allocation
+     Print free list after allocation
     print_pfa_state();
 
-    // Free those pages back
+    
     free_physical_pages(allocated);
-    esp_printf(vga_putc, "\nFreed 3 pages back to free list.\n");
-
-    // Final free list check
-    print_pfa_state();
+    esp_printf(vga_putc, "\nFreed 3 pages back to free list.\n")
+     Final free list check
+    print_pfa_state();  */
     
     while (1) {
         uint8_t status = inb(0x64);
